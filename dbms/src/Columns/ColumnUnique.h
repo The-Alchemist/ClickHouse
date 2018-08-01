@@ -67,7 +67,7 @@ namespace
     template <>
     struct ColumnUniqueContainer<ColumnFixedString>
     {
-        using Type = HashMapWithSavedHash<StringRefWrapper<ColumnString>, UInt64, StringRefHash>;
+        using Type = HashMapWithSavedHash<StringRefWrapper<ColumnFixedString>, UInt64, StringRefHash>;
     };
 }
 
