@@ -81,7 +81,7 @@ namespace
         {
             /// Hack. HashTable is Hash itself.
             const auto & state = static_cast<const State &>(static_cast<const HashTable &>(hash));
-            if (string_hash)
+            if constexpr (string_hash)
                 return (*state.saved_hash_column)[key];
             else
                 return hash(state, key);
