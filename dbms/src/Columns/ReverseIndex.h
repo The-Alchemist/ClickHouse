@@ -4,6 +4,8 @@
 #include <Common/HashTable/HashTable.h>
 #include <Common/HashTable/HashTableAllocator.h>
 
+#include <Columns/ColumnString.h>
+
 namespace DB
 {
 
@@ -126,10 +128,10 @@ namespace
 
 
     template <typename T>
-    constexpr bool isNumericColumn(const ColumnVector<T> *) { return true; }
+    constexpr bool isNumericColumn(const T *) { return false; }
 
-    template <>
-    constexpr bool isNumericColumn(const void *) { return false; }
+    template <typename T>
+    constexpr bool isNumericColumn(const ColumnVector<T> *) { return true; }
 
     static_assert(isNumericColumn(static_cast<ColumnVector<UInt8> *>(nullptr)));
     static_assert(!isNumericColumn(static_cast<ColumnString *>(nullptr)));
