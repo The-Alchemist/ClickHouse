@@ -274,7 +274,10 @@ UInt64 ReverseIndex<IndexType, ColumnType>::getInsertionPoint(const StringRef & 
 
     UInt64 hash;
     if constexpr (is_numeric_column)
-        hash = DefaultHash<ColumnType::value_type>()(*static_cast<typename ColumnType::value_type *>(data.data));
+    {
+        using ValueType = typename ColumnType::value_type;
+        hash = DefaultHash<ValueType>()(*static_cast<ValueType *>(data.data));
+    }
     else
         hash = StringRefHash()(data);
 
