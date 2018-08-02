@@ -5,6 +5,7 @@
 #include <Common/HashTable/HashTableAllocator.h>
 
 #include <Columns/ColumnString.h>
+#include <ext/range.h>
 
 namespace DB
 {
@@ -176,7 +177,7 @@ private:
 
 
 template <typename IndexType, typename ColumnType>
-void ReverseIndex<ColumnType, IndexType>::size() const
+size_t ReverseIndex<IndexType, ColumnType>::size() const
 {
     if (!column)
         throw Exception("ReverseIndex has not size because index column wasn't set.", ErrorCodes::LOGICAL_ERROR);
@@ -185,7 +186,7 @@ void ReverseIndex<ColumnType, IndexType>::size() const
 }
 
 template <typename IndexType, typename ColumnType>
-void ReverseIndex<ColumnType, IndexType>::buildIndex()
+void ReverseIndex<IndexType, ColumnType>::buildIndex()
 {
     if (index)
         return;
@@ -224,12 +225,10 @@ void ReverseIndex<ColumnType, IndexType>::buildIndex()
 }
 
 template <typename IndexType, typename ColumnType>
-UInt64 ReverseIndex<ColumnType, IndexType>::insert(UInt64 from_position)
+UInt64 ReverseIndex<IndexType, ColumnType>::insert(UInt64 from_position)
 {
     if (!index)
         buildIndex();
-
-    auto column = getRawColumnPtr();
 
     using IteratorType = typename IndexMapType::iterator;
     IteratorType iterator;
@@ -247,7 +246,7 @@ UInt64 ReverseIndex<ColumnType, IndexType>::insert(UInt64 from_position)
 }
 
 template <typename IndexType, typename ColumnType>
-UInt64 ReverseIndex<ColumnType, IndexType>::insertFromLastRow()
+UInt64 ReverseIndex<IndexType, ColumnType>::insertFromLastRow()
 {
     if (!column)
         throw Exception("ReverseIndex can't insert row from column because index column wasn't set.",
@@ -263,10 +262,12 @@ UInt64 ReverseIndex<ColumnType, IndexType>::insertFromLastRow()
     if (position != inserted_pos)
         throw Exception("Can't insert into reverse index from last row (" + toString(position)
                         + ")because the same row is in position " + toString(inserted_pos), ErrorCodes::LOGICAL_ERROR);
+
+    return inserted_pos;
 }
 
 template <typename IndexType, typename ColumnType>
-UInt64 ReverseIndex<ColumnType, IndexType>::getInsertionPoint(const StringRef & data)
+UInt64 ReverseIndex<IndexType, ColumnType>::getInsertionPoint(const StringRef & data)
 {
     if (!index)
         buildIndex();
@@ -278,8 +279,7 @@ UInt64 ReverseIndex<ColumnType, IndexType>::getInsertionPoint(const StringRef & 
         hash = StringRefHash()(data);
 
     auto iterator = index->find(data, hash);
-    return iterator == index->end() ? getNestedColumn()->size()
-                                    : *iterator;
+    return iterator == index->end() ? size() : *iterator;
 }
 
 }
