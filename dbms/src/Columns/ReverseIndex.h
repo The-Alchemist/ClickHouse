@@ -85,8 +85,17 @@ namespace
     };
 
 
+    template <typename Key, typename Cell, typename Hash>
+    class HashTableWithPublicState : public HashTable<Key, Cell, Hash, HashTableGrower<>, HashTableAllocator>
+    {
+        using State = typename Base::State;
+
+    public:
+        State & getState() { return *this; }
+    };
+
     template <typename IndexType, typename ColumnType>
-    class ReverseIndexStringHashTable : public HashTable<
+    class ReverseIndexStringHashTable : public HashTableWithPublicState<
             IndexType,
             ReverseIndexHashTableCell<
                     IndexType,
@@ -94,12 +103,10 @@ namespace
                     ReverseIndexStringHashTable<IndexType, ColumnType>,
                     ColumnType,
                     true>,
-            ReverseIndexStringHash,
-            HashTableGrower<>,
-            HashTableAllocator> {};
+            ReverseIndexStringHash> {};
 
     template <typename IndexType, typename ColumnType>
-    class ReverseIndexNumberHashTable : public HashTable<
+    class ReverseIndexNumberHashTable : public HashTableWithPublicState<
             IndexType,
             ReverseIndexHashTableCell<
                     IndexType,
@@ -107,9 +114,7 @@ namespace
                     ReverseIndexNumberHashTable<IndexType, ColumnType>,
                     ColumnType,
                     false>,
-            ReverseIndexNumberHash<typename ColumnType::value_type>,
-            HashTableGrower<>,
-            HashTableAllocator> {};
+            ReverseIndexNumberHash<typename ColumnType::value_type>> {};
 
 
     template <typename IndexType, typename ColumnType, bool is_numeric_column>
@@ -212,7 +217,7 @@ void ReverseIndex<IndexType, ColumnType>::buildIndex()
     if constexpr (use_saved_hash)
         saved_hash = ColumnUInt64::create(size);
 
-    auto & state = static_cast<typename IndexMapType::cell_type::State &>(*index);
+    auto & state = index->getState();
     state.index_column = column;
     if constexpr (use_saved_hash)
         state.saved_hash_column = saved_hash.get();
