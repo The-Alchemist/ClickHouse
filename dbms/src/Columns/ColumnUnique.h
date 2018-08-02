@@ -238,14 +238,7 @@ size_t ColumnUnique<ColumnType>::uniqueInsertData(const char * pos, size_t lengt
     UInt64 insertion_point = index.getInsertionPoint(StringRef(pos, length));
 
     if (insertion_point == size)
-    {
-        column->insertData(pos, length);
-        UInt64 inserted_pos = index.insert(size);
-
-        if (inserted_pos != insertion_point)
-            throw Exception("Functions getInsertionPoint and insertIntoMap got different positions in ColumnUnique.",
-                            ErrorCodes::LOGICAL_ERROR);
-    }
+        index.insertFromLastRow();
 
     return insertion_point;
 }
@@ -328,7 +321,7 @@ MutableColumnPtr ColumnUnique<ColumnType>::uniqueInsertRangeImpl(
     const NullMap * null_map = nullptr;
     auto & positions = positions_column->getData();
 
-    auto updatePosition = [&](UInt64 & next_position) -> MutableColumnPtr
+    auto update_position = [&](UInt64 & next_position) -> MutableColumnPtr
     {
         constexpr auto next_size = NumberTraits::nextSize(sizeof(IndexType));
         using SuperiorIndexType = typename NumberTraits::Construct<false, false, next_size>::Type;
@@ -377,6 +370,22 @@ MutableColumnPtr ColumnUnique<ColumnType>::uniqueInsertRangeImpl(
     if (secondary_index)
         next_position += secondary_index->size();
 
+    auto check_inserted_position = [&next_position](UInt64 inserted_position)
+    {
+        if (inserted_position != next_position)
+            throw Exception("Inserted position " + toString(inserted_position)
+                            + " is not equal with expected " + toString(next_position), ErrorCodes::LOGICAL_ERROR);
+    };
+
+    auto insert_key = [&](const StringRef & ref, ReverseIndex<UInt64, ColumnType> * cur_index, size_t prev_rows)
+    {
+        positions[num_added_rows] = next_position;
+        cur_index->getColumn()->insertData(ref.data, ref.size);
+        auto inserted_pos = cur_index->insertFromLastRow();
+        check_inserted_position(inserted_pos + prev_rows);
+        return update_position(next_position);
+    };
+
     for (; num_added_rows < length; ++num_added_rows)
     {
         auto row = start + num_added_rows;
@@ -396,10 +405,7 @@ MutableColumnPtr ColumnUnique<ColumnType>::uniqueInsertRangeImpl(
                     insertion_point = secondary_index->getInsertionPoint(ref);
                     if (insertion_point == secondary_index->size())
                     {
-                        positions[num_added_rows] = next_position;
-                        secondary_index->getColumn()->insertData(ref.data, ref.size);
-                        auto inserted_pos = secondary_index->insertFromLastRow();
-                        if (auto res = updatePosition(next_position))
+                        if (auto res = insert_key(ref, secondary_index, max_dictionary_size))
                             return res;
                     }
                     else
@@ -407,11 +413,7 @@ MutableColumnPtr ColumnUnique<ColumnType>::uniqueInsertRangeImpl(
                 }
                 else
                 {
-                    positions[num_added_rows] = next_position;
-                    column->insertData(ref.data, ref.size);
-                    auto inserted_pos = index.insertFromLastRow();
-
-                    if (auto res = updatePosition(next_position))
+                    if (auto res = insert_key(ref, &index, 0))
                         return res;
                 }
             }
