@@ -60,7 +60,7 @@ namespace
         using Base::key;
 
         static constexpr bool need_zero_value_storage = false;
-        static bool isZero(const Key &, const State &) { return false; }
+        static bool isZero(const IndexType &, const State &) { return false; }
 
         /// Special case when we want to compare with something not in index_column.
         /// When we compare something inside column default keyEquals checks only that row numbers are equal.
