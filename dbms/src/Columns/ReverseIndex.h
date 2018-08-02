@@ -92,8 +92,10 @@ namespace
     class HashTableWithPublicState : public HashTable<Key, Cell, Hash, HashTableGrower<>, HashTableAllocator>
     {
         using State = typename Cell::State;
+        using Base = HashTable<Key, Cell, Hash, HashTableGrower<>, HashTableAllocator>;
 
     public:
+        using Base::Base;
         State & getState() { return *this; }
     };
 
@@ -106,7 +108,20 @@ namespace
                     ReverseIndexStringHashTable<IndexType, ColumnType>,
                     ColumnType,
                     true>,
-            ReverseIndexStringHash> {};
+            ReverseIndexStringHash>
+    {
+        using Base = HashTableWithPublicState<
+                IndexType,
+                ReverseIndexHashTableCell<
+                        IndexType,
+                        ReverseIndexStringHash,
+                        ReverseIndexStringHashTable<IndexType, ColumnType>,
+                        ColumnType,
+                        true>,
+                ReverseIndexStringHash>;
+    public:
+        using Base::Base;
+    };
 
     template <typename IndexType, typename ColumnType>
     class ReverseIndexNumberHashTable : public HashTableWithPublicState<
@@ -117,7 +132,20 @@ namespace
                     ReverseIndexNumberHashTable<IndexType, ColumnType>,
                     ColumnType,
                     false>,
-            ReverseIndexNumberHash<typename ColumnType::value_type>> {};
+            ReverseIndexNumberHash<typename ColumnType::value_type>>
+    {
+        using Base = HashTableWithPublicState<
+                IndexType,
+                ReverseIndexHashTableCell<
+                        IndexType,
+                        ReverseIndexNumberHash<typename ColumnType::value_type>,
+                        ReverseIndexNumberHashTable<IndexType, ColumnType>,
+                        ColumnType,
+                        false>,
+                ReverseIndexNumberHash<typename ColumnType::value_type>>;
+    public:
+        using Base::Base;
+    };
 
 
     template <typename IndexType, typename ColumnType, bool is_numeric_column>
