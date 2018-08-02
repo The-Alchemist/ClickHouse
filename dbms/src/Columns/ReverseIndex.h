@@ -59,6 +59,7 @@ namespace
         using State = typename Base::State;
         using Base::Base;
         using Base::key;
+        using Base::keyEquals;
 
         static constexpr bool need_zero_value_storage = false;
         bool isZero(const State &) const { return false; }
