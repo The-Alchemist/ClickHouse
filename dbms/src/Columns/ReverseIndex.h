@@ -57,6 +57,7 @@ namespace
     {
         using Base = HashTableCell<IndexType, Hash, ReverseIndexHashTableState<ColumnType, string_hash>>;
         using State = typename Base::State;
+        using Base::Base;
         using Base::key;
 
         static constexpr bool need_zero_value_storage = false;
