@@ -69,7 +69,7 @@ namespace
         /// When we compare something inside column default keyEquals checks only that row numbers are equal.
         /// ObjectToCompare is StringRef for strings and IndexType for numbers.
         template <typename ObjectToCompare>
-        bool keyEquals(const ObjectToCompare & object, size_t hash_, const State & state) const
+        bool keyEquals(const ObjectToCompare & object, size_t hash_ [[maybe_unused]], const State & state) const
         {
             if constexpr (string_hash)
                 return hash_ == (*state.saved_hash_column)[key] && object == state.index_column->getDataAt(key);
