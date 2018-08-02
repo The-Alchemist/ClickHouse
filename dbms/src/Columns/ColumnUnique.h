@@ -88,7 +88,7 @@ public:
     void forEachSubcolumn(IColumn::ColumnCallback callback) override
     {
         callback(column_holder);
-        index = nullptr;
+        index.setColumn(getRawColumnPtr());
     }
 
 private:

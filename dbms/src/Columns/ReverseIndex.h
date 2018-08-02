@@ -150,7 +150,7 @@ class ReverseIndex
 public:
     explicit ReverseIndex(size_t num_prefix_rows_to_skip) : num_prefix_rows_to_skip(num_prefix_rows_to_skip) {}
 
-    void setColumn(ColumnType * column_) { column = column_; }
+    void setColumn(ColumnType * column_);
 
     static constexpr bool is_numeric_column = isNumericColumn(static_cast<ColumnType *>(nullptr));
     static constexpr bool use_saved_hash = is_numeric_column;
@@ -177,6 +177,16 @@ private:
     void buildIndex();
 };
 
+
+
+template <typename IndexType, typename ColumnType>
+void ReverseIndex<IndexType, ColumnType>:: setColumn(ColumnType * column_)
+{
+    if (column != column_)
+        index = nullptr;
+
+    column = column_;
+}
 
 template <typename IndexType, typename ColumnType>
 size_t ReverseIndex<IndexType, ColumnType>::size() const
