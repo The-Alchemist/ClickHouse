@@ -200,7 +200,7 @@ void ReverseIndex<IndexType, ColumnType>::buildIndex()
     if constexpr (use_saved_hash)
         saved_hash = ColumnUInt64::create(size);
 
-    auto & state = static_cast<IndexMapType::cell_type::State &>(*index);
+    auto & state = static_cast<typename IndexMapType::cell_type::State &>(*index);
     state.index_column = column;
     if constexpr (use_saved_hash)
         state.saved_hash_column = saved_hash.get();
