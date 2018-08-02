@@ -223,7 +223,7 @@ void ReverseIndex<IndexType, ColumnType>::buildIndex()
     auto & state = index->getState();
     state.index_column = column;
     if constexpr (use_saved_hash)
-        state.saved_hash_column = saved_hash.get();
+        state.saved_hash_column = &saved_hash->getData();
 
     using IteratorType = typename IndexMapType::iterator;
     IteratorType iterator;
