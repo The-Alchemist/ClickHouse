@@ -158,7 +158,7 @@ public:
     void setColumn(ColumnType * column_);
 
     static constexpr bool is_numeric_column = isNumericColumn(static_cast<ColumnType *>(nullptr));
-    static constexpr bool use_saved_hash = is_numeric_column;
+    static constexpr bool use_saved_hash = !is_numeric_column;
 
     UInt64 insert(UInt64 from_position);
     UInt64 insertFromLastRow();
