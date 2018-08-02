@@ -33,7 +33,7 @@ namespace
     struct ReverseIndexHash : public Hash
     {
         template <typename T>
-        size_t operator()(T key) const
+        size_t operator()(T) const
         {
             throw Exception("operator()(key) is not implemented for ReverseIndexHash.", ErrorCodes::LOGICAL_ERROR);
         }
