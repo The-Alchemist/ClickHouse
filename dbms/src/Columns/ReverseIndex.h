@@ -67,14 +67,12 @@ namespace
 
         /// Special case when we want to compare with something not in index_column.
         /// When we compare something inside column default keyEquals checks only that row numbers are equal.
-        /// ObjectToCompare is StringRef for strings and IndexType for numbers.
-        template <typename ObjectToCompare>
-        bool keyEquals(const ObjectToCompare & object, size_t hash_ [[maybe_unused]], const State & state) const
+        bool keyEquals(const StringRef & object, size_t hash_ [[maybe_unused]], const State & state) const
         {
             if constexpr (string_hash)
                 return hash_ == (*state.saved_hash_column)[key] && object == state.index_column->getDataAt(key);
             else
-                return object == key;
+                return object == state.index_column->getDataAt(key);
         }
 
         size_t getHash(const Hash & hash) const
@@ -341,7 +339,7 @@ UInt64 ReverseIndex<IndexType, ColumnType>::getInsertionPoint(const StringRef & 
         using ValueType = typename ColumnType::value_type;
         ValueType value = *reinterpret_cast<const ValueType *>(data.data);
         auto hash = DefaultHash<ValueType>()(value);
-        iterator = index->find(value, hash);
+        iterator = index->find(data, hash);
     }
     else
     {
