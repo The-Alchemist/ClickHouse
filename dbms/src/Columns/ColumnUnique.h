@@ -82,7 +82,7 @@ public:
     size_t allocatedBytes() const override
     {
         return column_holder->allocatedBytes()
-               + (index ? index->getBufferSizeInBytes() : 0)
+               + index.allocatedBytes()
                + (cached_null_mask ? cached_null_mask->allocatedBytes() : 0);
     }
     void forEachSubcolumn(IColumn::ColumnCallback callback) override

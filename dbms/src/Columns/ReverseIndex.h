@@ -162,6 +162,8 @@ public:
     ColumnType * getColumn() const { return column; }
     size_t size() const;
 
+    size_t allocatedBytes() const { return index ? index->getBufferSizeInBytes() : 0; }
+
 private:
     ColumnType * column = nullptr;
     size_t num_prefix_rows_to_skip;
