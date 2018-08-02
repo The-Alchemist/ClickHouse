@@ -436,8 +436,7 @@ MutableColumnPtr ColumnUnique<ColumnType>::uniqueInsertRangeFrom(const IColumn &
         if (size <= std::numeric_limits<IndexType>::max())
         {
             auto positions = ColumnVector<IndexType>::create(length);
-            return this->uniqueInsertRangeImpl<IndexType>(src, start, length, 0,
-                                                          std::move(positions), nullptr, nullptr, 0);
+            return this->uniqueInsertRangeImpl<IndexType>(src, start, length, 0, std::move(positions), nullptr, 0);
         }
 
         return nullptr;
@@ -479,9 +478,10 @@ IColumnUnique::IndexesWithOverflow ColumnUnique<ColumnType>::uniqueInsertRangeWi
         if (size <= std::numeric_limits<IndexType>::max())
         {
             auto positions = ColumnVector<IndexType>::create(length);
-            IndexMapType secondary_index;
+            ReverseIndex<UInt64, ColumnType> secondary_index(0);
+            secondary_index.setColumn(overflowed_keys_ptr);
             return this->uniqueInsertRangeImpl<IndexType>(src, start, length, 0, std::move(positions),
-                                                          overflowed_keys_ptr, &secondary_index, max_dictionary_size);
+                                                          &secondary_index, max_dictionary_size);
         }
 
         return nullptr;
