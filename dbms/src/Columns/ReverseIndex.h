@@ -321,16 +321,22 @@ UInt64 ReverseIndex<IndexType, ColumnType>::getInsertionPoint(const StringRef & 
     if (!index)
         buildIndex();
 
-    UInt64 hash;
+    using IteratorType = typename IndexMapType::iterator;
+    IteratorType iterator;
+
     if constexpr (is_numeric_column)
     {
         using ValueType = typename ColumnType::value_type;
-        hash = DefaultHash<ValueType>()(*reinterpret_cast<const ValueType *>(data.data));
+        ValueType value = *reinterpret_cast<const ValueType *>(data.data);
+        auto hash = DefaultHash<ValueType>()(value);
+        iterator = index->find(value, hash);
     }
     else
-        hash = StringRefHash()(data);
+    {
+        auto hash = StringRefHash()(data);
+        iterator = index->find(data, hash);
+    }
 
-    auto iterator = index->find(data, hash);
     return iterator == index->end() ? size() : *iterator;
 }
 
