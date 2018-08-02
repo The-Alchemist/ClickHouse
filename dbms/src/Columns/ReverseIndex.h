@@ -88,7 +88,7 @@ namespace
     template <typename Key, typename Cell, typename Hash>
     class HashTableWithPublicState : public HashTable<Key, Cell, Hash, HashTableGrower<>, HashTableAllocator>
     {
-        using State = typename Base::State;
+        using State = typename Cell::State;
 
     public:
         State & getState() { return *this; }
