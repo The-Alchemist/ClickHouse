@@ -122,6 +122,7 @@ namespace
                 ReverseIndexStringHash>;
     public:
         using Base::Base;
+        friend class ReverseIndexHashTableCell;
     };
 
     template <typename IndexType, typename ColumnType>
@@ -146,6 +147,7 @@ namespace
                 ReverseIndexNumberHash<typename ColumnType::value_type>>;
     public:
         using Base::Base;
+        friend class ReverseIndexHashTableCell;
     };
 
 
