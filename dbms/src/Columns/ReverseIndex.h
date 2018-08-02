@@ -13,7 +13,7 @@ namespace
     struct ReverseIndexHashTableState;
 
     template <typename ColumnType>
-    struct ReverseIndexHashTableState<ColumnType, /* with_saved_hash = */ true>
+    struct ReverseIndexHashTableState<ColumnType, /* with_saved_hash = */ false>
     {
         ColumnType * index_column;
     };
