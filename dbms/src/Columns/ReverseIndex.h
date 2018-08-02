@@ -74,7 +74,7 @@ namespace
             if constexpr (string_hash)
                 return hash_ == (*state.saved_hash_column)[key] && object == state.index_column->getDataAt(key);
             else
-                return object == state.index_column->getElement(key);
+                return object == key;
         }
 
         size_t getHash(const Hash & hash) const
