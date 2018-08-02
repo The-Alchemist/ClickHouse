@@ -50,10 +50,11 @@ namespace
 
     template <typename IndexType, typename Hash, typename HashTable, typename ColumnType, bool string_hash>
     struct  ReverseIndexHashTableCell
-            : public HashTableCell<IndexType, Hash, ReverseIndexHashTableState<ColumnType, string_hash>>
+        : public HashTableCell<IndexType, Hash, ReverseIndexHashTableState<ColumnType, string_hash>>
     {
         using Base = HashTableCell<IndexType, Hash, ReverseIndexHashTableState<ColumnType, string_hash>>;
         using State = typename Base::State;
+        using Base::key;
 
         static constexpr bool need_zero_value_storage = false;
 
