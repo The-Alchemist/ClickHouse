@@ -60,6 +60,7 @@ namespace
         using Base::key;
 
         static constexpr bool need_zero_value_storage = false;
+        bool isZero(const State &) const { return false; }
         static bool isZero(const IndexType &, const State &) { return false; }
 
         /// Special case when we want to compare with something not in index_column.
