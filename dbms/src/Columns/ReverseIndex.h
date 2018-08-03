@@ -404,7 +404,7 @@ UInt64 ReverseIndex<IndexType, ColumnType>::getInsertionPoint(const StringRef & 
         iterator = index->find(data, hash);
     }
 
-    return iterator == index->end() ? size() : *iterator;
+    return iterator == index->end() ? size() + base_index : *iterator;
 }
 
 }
