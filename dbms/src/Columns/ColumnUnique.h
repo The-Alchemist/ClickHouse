@@ -95,7 +95,7 @@ private:
 
     ColumnPtr column_holder;
     bool is_nullable;
-    ReverseIndex<UInt64, ColumnType, false> index;
+    ReverseIndex<UInt64, ColumnType> index;
 
     /// For DataTypeNullable, stores null map.
     mutable ColumnPtr cached_null_mask;
