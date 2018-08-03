@@ -69,7 +69,7 @@ namespace
         size_t operator()(const State & state, T key) const
         {
             auto index = key;
-            if constexpr (State::with_base_index)
+            if constexpr (State::has_base_index)
                 index -= state.base_index;
 
             return Hash::operator()(state.index_column->getElement(index));
