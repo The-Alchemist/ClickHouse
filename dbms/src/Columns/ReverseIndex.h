@@ -345,11 +345,11 @@ UInt64 ReverseIndex<IndexType, ColumnType>::insert(UInt64 from_position)
     if constexpr (use_saved_hash)
     {
         auto hash = StringRefHash()(column->getDataAt(from_position));
-        index->emplace(from_position + base_index, iterator, inserted, hash);
         auto & data = saved_hash->getData();
         if (data.size() <= from_position)
             data.resize(from_position + 1);
         data[from_position] = hash;
+        index->emplace(from_position + base_index, iterator, inserted, hash);
     }
     else
         index->emplace(from_position + base_index, iterator, inserted);
