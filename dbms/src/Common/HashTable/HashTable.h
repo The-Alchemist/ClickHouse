@@ -122,8 +122,7 @@ struct HashTableCell
     /// If zero keys can be inserted into the table, then the cell for the zero key is stored separately, not in the main buffer.
     /// Zero keys must be such that the zeroed-down piece of memory is a zero key.
     bool isZero(const State & state) const { return isZero(key, state); }
-    template <typename T>
-    static bool isZero(const T & key, const State & /*state*/) { return ZeroTraits::check(key); }
+    static bool isZero(const Key & key, const State & /*state*/) { return ZeroTraits::check(key); }
 
     /// Set the key value to zero.
     void setZero() { ZeroTraits::set(key); }

@@ -128,7 +128,7 @@ template <typename ColumnType>
 ColumnUnique<ColumnType>::ColumnUnique(const ColumnUnique & other)
     : column_holder(other.column_holder)
     , is_nullable(other.is_nullable)
-    , index(numSpecialValues(is_nullable))
+    , index(numSpecialValues(is_nullable), 0)
 {
     index.setColumn(getRawColumnPtr());
 }
@@ -136,7 +136,7 @@ ColumnUnique<ColumnType>::ColumnUnique(const ColumnUnique & other)
 template <typename ColumnType>
 ColumnUnique<ColumnType>::ColumnUnique(const IDataType & type)
     : is_nullable(type.isNullable())
-    , index(numSpecialValues(is_nullable))
+    , index(numSpecialValues(is_nullable), 0)
 {
     const auto & holder_type = is_nullable ? *static_cast<const DataTypeNullable &>(type).getNestedType() : type;
     column_holder = holder_type.createColumn()->cloneResized(numSpecialValues());
@@ -147,7 +147,7 @@ template <typename ColumnType>
 ColumnUnique<ColumnType>::ColumnUnique(MutableColumnPtr && holder, bool is_nullable)
     : column_holder(std::move(holder))
     , is_nullable(is_nullable)
-    , index(numSpecialValues(is_nullable))
+    , index(numSpecialValues(is_nullable), 0)
 {
     if (column_holder->size() < numSpecialValues())
         throw Exception("Too small holder column for ColumnUnique.", ErrorCodes::ILLEGAL_COLUMN);
@@ -377,12 +377,12 @@ MutableColumnPtr ColumnUnique<ColumnType>::uniqueInsertRangeImpl(
                             + " is not equal with expected " + toString(next_position), ErrorCodes::LOGICAL_ERROR);
     };
 
-    auto insert_key = [&](const StringRef & ref, ReverseIndex<UInt64, ColumnType> * cur_index, size_t prev_rows)
+    auto insert_key = [&](const StringRef & ref, ReverseIndex<UInt64, ColumnType> * cur_index)
     {
         positions[num_added_rows] = next_position;
         cur_index->getColumn()->insertData(ref.data, ref.size);
         auto inserted_pos = cur_index->insertFromLastRow();
-        check_inserted_position(inserted_pos + prev_rows);
+        check_inserted_position(inserted_pos);
         return update_position(next_position);
     };
 
@@ -398,22 +398,22 @@ MutableColumnPtr ColumnUnique<ColumnType>::uniqueInsertRangeImpl(
         {
             auto ref = src_column->getDataAt(row);
             auto insertion_point = index.getInsertionPoint(ref);
-            if (insertion_point == column->size())
+            if (insertion_point == next_position)
             {
                 if (secondary_index && next_position >= max_dictionary_size)
                 {
                     insertion_point = secondary_index->getInsertionPoint(ref);
-                    if (insertion_point == secondary_index->size())
+                    if (insertion_point == next_position)
                     {
-                        if (auto res = insert_key(ref, secondary_index, max_dictionary_size))
+                        if (auto res = insert_key(ref, secondary_index))
                             return res;
                     }
                     else
-                        positions[num_added_rows] = insertion_point + max_dictionary_size;
+                        positions[num_added_rows] = insertion_point;
                 }
                 else
                 {
-                    if (auto res = insert_key(ref, &index, 0))
+                    if (auto res = insert_key(ref, &index))
                         return res;
                 }
             }
@@ -480,7 +480,7 @@ IColumnUnique::IndexesWithOverflow ColumnUnique<ColumnType>::uniqueInsertRangeWi
         if (size <= std::numeric_limits<IndexType>::max())
         {
             auto positions = ColumnVector<IndexType>::create(length);
-            ReverseIndex<UInt64, ColumnType> secondary_index(0);
+            ReverseIndex<UInt64, ColumnType> secondary_index(0, max_dictionary_size);
             secondary_index.setColumn(overflowed_keys_ptr);
             return this->uniqueInsertRangeImpl<IndexType>(src, start, length, 0, std::move(positions),
                                                           &secondary_index, max_dictionary_size);

@@ -62,6 +62,12 @@ namespace
         using Base::keyEquals;
         using Base::isZero;
 
+        template <typename T>
+        static bool isZero(const T &, const State & /*state*/)
+        {
+            static_assert(!std::is_same_v<typename std::decay<T>::type, typename std::decay<IndexType>::type>);
+            return false;
+        }
         /// Special case when we want to compare with something not in index_column.
         /// When we compare something inside column default keyEquals checks only that row numbers are equal.
         bool keyEquals(const StringRef & object, size_t hash_ [[maybe_unused]], const State & state) const
@@ -192,14 +198,15 @@ template <typename IndexType, typename ColumnType>
 class ReverseIndex
 {
 public:
-    explicit ReverseIndex(size_t num_prefix_rows_to_skip) : num_prefix_rows_to_skip(num_prefix_rows_to_skip) {}
+    explicit ReverseIndex(UInt64 num_prefix_rows_to_skip, UInt64 base_index)
+            : num_prefix_rows_to_skip(num_prefix_rows_to_skip), base_index(base_index) {}
 
     void setColumn(ColumnType * column_);
 
     static constexpr bool is_numeric_column = isNumericColumn(static_cast<ColumnType *>(nullptr));
     static constexpr bool use_saved_hash = !is_numeric_column;
 
-    UInt64 insert(UInt64 from_position);
+    UInt64 insert(UInt64 from_position);  /// Insert into index column[from_position];
     UInt64 insertFromLastRow();
     UInt64 getInsertionPoint(const StringRef & data);
 
@@ -210,7 +217,8 @@ public:
 
 private:
     ColumnType * column = nullptr;
-    size_t num_prefix_rows_to_skip;
+    UInt64 num_prefix_rows_to_skip; /// The number prefix tows in column which won't be sored at index.
+    UInt64 base_index; /// This values will be added to row number which is inserted into index.
 
     using IndexMapType = ReverseIndexHashTable<IndexType, ColumnType>;
 
@@ -270,11 +278,11 @@ void ReverseIndex<IndexType, ColumnType>::buildIndex()
         if constexpr (use_saved_hash)
         {
             auto hash = StringRefHash()(column->getDataAt(row));
-            index->emplace(row, iterator, inserted, hash);
+            index->emplace(row + base_index, iterator, inserted, hash);
             saved_hash->getElement(row) = hash;
         }
         else
-            index->emplace(row, iterator, inserted);
+            index->emplace(row + base_index, iterator, inserted);
 
         if (!inserted)
             throw Exception("Duplicating keys found in ReverseIndex.", ErrorCodes::LOGICAL_ERROR);
@@ -294,11 +302,11 @@ UInt64 ReverseIndex<IndexType, ColumnType>::insert(UInt64 from_position)
     if constexpr (use_saved_hash)
     {
         auto hash = StringRefHash()(column->getDataAt(from_position));
-        index->emplace(from_position, iterator, inserted, hash);
+        index->emplace(from_position + base_index, iterator, inserted, hash);
         saved_hash->getElement(from_position) = hash;
     }
     else
-        index->emplace(from_position, iterator, inserted);
+        index->emplace(from_position + base_index, iterator, inserted);
 
     return *iterator;
 }
@@ -317,9 +325,9 @@ UInt64 ReverseIndex<IndexType, ColumnType>::insertFromLastRow()
 
     UInt64 position = num_rows - 1;
     UInt64 inserted_pos = insert(position);
-    if (position != inserted_pos)
-        throw Exception("Can't insert into reverse index from last row (" + toString(position)
-                        + ")because the same row is in position " + toString(inserted_pos), ErrorCodes::LOGICAL_ERROR);
+    if (position + base_index != inserted_pos)
+        throw Exception("Can't insert into reverse index from last row (" + toString(position + base_index)
+                        + ") because the same row is in position " + toString(inserted_pos), ErrorCodes::LOGICAL_ERROR);
 
     return inserted_pos;
 }
