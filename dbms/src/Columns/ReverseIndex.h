@@ -25,6 +25,16 @@ namespace
     };
 
     template <typename ColumnType>
+    struct ReverseIndexHashTableState<ColumnType, /* with_saved_hash */ false, /* has_base_index */ true>
+    {
+        constexpr static bool with_saved_hash = false;
+        constexpr static bool has_base_index = true;
+
+        ColumnType * index_column;
+        size_t base_index;
+    };
+
+    template <typename ColumnType>
     struct ReverseIndexHashTableState<ColumnType, /* with_saved_hash = */ true, /* has_base_index */ false>
     {
         constexpr static bool with_saved_hash = true;
