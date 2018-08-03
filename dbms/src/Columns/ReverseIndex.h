@@ -275,6 +275,7 @@ void ReverseIndex<IndexType, ColumnType>::buildIndex()
         {
             auto hash = StringRefHash()(column->getDataAt(row));
             index->emplace(row, iterator, inserted, hash);
+            saved_hash->getElement(row) = hash;
         }
         else
             index->emplace(row, iterator, inserted);
@@ -298,6 +299,7 @@ UInt64 ReverseIndex<IndexType, ColumnType>::insert(UInt64 from_position)
     {
         auto hash = StringRefHash()(column->getDataAt(from_position));
         index->emplace(from_position, iterator, inserted, hash);
+        saved_hash->getElement(from_position) = hash;
     }
     else
         index->emplace(from_position, iterator, inserted);
