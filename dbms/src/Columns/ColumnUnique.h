@@ -386,6 +386,12 @@ MutableColumnPtr ColumnUnique<ColumnType>::uniqueInsertRangeImpl(
         return update_position(next_position);
     };
 
+    const size_t num_indexes = secondary_index ? 2 : 1;
+    ReverseIndex<UInt64, ColumnType> * indexes[num_indexes];
+    indexes[0] = &index;
+    if (secondary_index)
+        indexes[1] = secondary_index;
+
     for (; num_added_rows < length; ++num_added_rows)
     {
         auto row = start + num_added_rows;
@@ -397,28 +403,30 @@ MutableColumnPtr ColumnUnique<ColumnType>::uniqueInsertRangeImpl(
         else
         {
             auto ref = src_column->getDataAt(row);
-            auto insertion_point = index.getInsertionPoint(ref);
-            if (insertion_point == next_position)
+            auto cur_index = &index;
+            bool inserted = false;
+
+            while (!inserted)
             {
-                if (secondary_index && next_position >= max_dictionary_size)
+                auto insertion_point = cur_index->getInsertionPoint(ref);
+
+                if (insertion_point == next_position)
                 {
-                    insertion_point = secondary_index->getInsertionPoint(ref);
-                    if (insertion_point == next_position)
+                    bool secondary = secondary_index && cur_index == secondary_index;
+                    if (!secondary && next_position >= max_dictionary_size)
                     {
-                        if (auto res = insert_key(ref, secondary_index))
-                            return res;
+                        cur_index = secondary_index;
+                        continue;
                     }
-                    else
-                        positions[num_added_rows] = insertion_point;
-                }
-                else
-                {
-                    if (auto res = insert_key(ref, &index))
+
+                    if (auto res = insert_key(ref, cur_index))
                         return res;
                 }
+                else
+                   positions[num_added_rows] = insertion_point;
+
+                inserted = true;
             }
-            else
-                positions[num_added_rows] = insertion_point;
         }
     }
 
@@ -429,7 +437,6 @@ MutableColumnPtr ColumnUnique<ColumnType>::uniqueInsertRangeImpl(
 template <typename ColumnType>
 MutableColumnPtr ColumnUnique<ColumnType>::uniqueInsertRangeFrom(const IColumn & src, size_t start, size_t length)
 {
-
     auto callForType = [this, &src, start, length](auto x) -> MutableColumnPtr
     {
         size_t size = getRawColumnPtr()->size();
@@ -466,7 +473,6 @@ IColumnUnique::IndexesWithOverflow ColumnUnique<ColumnType>::uniqueInsertRangeWi
     size_t length,
     size_t max_dictionary_size)
 {
-
     auto overflowed_keys = column_holder->cloneEmpty();
     auto overflowed_keys_ptr = typeid_cast<ColumnType *>(overflowed_keys.get());
     if (!overflowed_keys_ptr)
