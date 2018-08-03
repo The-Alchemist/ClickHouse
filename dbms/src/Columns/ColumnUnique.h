@@ -406,8 +406,7 @@ MutableColumnPtr ColumnUnique<ColumnType>::uniqueInsertRangeImpl(
 
                 if (insertion_point == next_position)
                 {
-                    bool secondary = secondary_index && cur_index == secondary_index;
-                    if (!secondary && next_position >= max_dictionary_size)
+                    if (secondary_index && cur_index != secondary_index && next_position >= max_dictionary_size)
                     {
                         cur_index = secondary_index;
                         continue;
