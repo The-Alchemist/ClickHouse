@@ -313,6 +313,7 @@ void ReverseIndex<IndexType, ColumnType>::buildIndex()
 
     auto & state = index->getState();
     state.index_column = column;
+    state.base_index = base_index;
     if constexpr (use_saved_hash)
         state.saved_hash_column = &saved_hash->getData();
 
