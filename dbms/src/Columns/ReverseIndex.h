@@ -60,11 +60,7 @@ namespace
         using Base::Base;
         using Base::key;
         using Base::keyEquals;
-
-        static constexpr bool need_zero_value_storage = false;
-        bool isZero(const State &) const { return false; }
-        template <typename T>
-        static bool isZero(const T &, const State &) { return false; }
+        using Base::isZero;
 
         /// Special case when we want to compare with something not in index_column.
         /// When we compare something inside column default keyEquals checks only that row numbers are equal.
