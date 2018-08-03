@@ -386,12 +386,6 @@ MutableColumnPtr ColumnUnique<ColumnType>::uniqueInsertRangeImpl(
         return update_position(next_position);
     };
 
-    const size_t num_indexes = secondary_index ? 2 : 1;
-    ReverseIndex<UInt64, ColumnType> * indexes[num_indexes];
-    indexes[0] = &index;
-    if (secondary_index)
-        indexes[1] = secondary_index;
-
     for (; num_added_rows < length; ++num_added_rows)
     {
         auto row = start + num_added_rows;
