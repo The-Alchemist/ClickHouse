@@ -12,20 +12,37 @@ namespace DB
 
 namespace
 {
-    template <typename ColumnType, bool with_saved_hash>
+    template <typename ColumnType, bool with_saved_hash, bool has_base_index>
     struct ReverseIndexHashTableState;
 
     template <typename ColumnType>
-    struct ReverseIndexHashTableState<ColumnType, /* with_saved_hash = */ false>
+    struct ReverseIndexHashTableState<ColumnType, /* with_saved_hash */ false, /* has_base_index */ false>
     {
+        constexpr static bool with_saved_hash = false;
+        constexpr static bool has_base_index = false;
+
         ColumnType * index_column;
     };
 
     template <typename ColumnType>
-    struct ReverseIndexHashTableState<ColumnType, /* with_saved_hash = */ true>
+    struct ReverseIndexHashTableState<ColumnType, /* with_saved_hash = */ true, /* has_base_index */ false>
     {
+        constexpr static bool with_saved_hash = true;
+        constexpr static bool has_base_index = false;
+
         ColumnType * index_column;
         typename ColumnVector<UInt64>::Container * saved_hash_column;
+    };
+
+    template <typename ColumnType>
+    struct ReverseIndexHashTableState<ColumnType, /* with_saved_hash = */ true, /* has_base_index */ true>
+    {
+        constexpr static bool with_saved_hash = true;
+        constexpr static bool has_base_index = true;
+
+        ColumnType * index_column;
+        typename ColumnVector<UInt64>::Container * saved_hash_column;
+        size_t base_index;
     };
 
 
@@ -51,11 +68,11 @@ namespace
     using ReverseIndexNumberHash = ReverseIndexHash<DefaultHash<IndexType>>;
 
 
-    template <typename IndexType, typename Hash, typename HashTable, typename ColumnType, bool string_hash>
+    template <typename IndexType, typename Hash, typename HashTable, typename ColumnType, bool string_hash, bool has_base_index>
     struct  ReverseIndexHashTableCell
-        : public HashTableCell<IndexType, Hash, ReverseIndexHashTableState<ColumnType, string_hash>>
+        : public HashTableCell<IndexType, Hash, ReverseIndexHashTableState<ColumnType, string_hash, has_base_index>>
     {
-        using Base = HashTableCell<IndexType, Hash, ReverseIndexHashTableState<ColumnType, string_hash>>;
+        using Base = HashTableCell<IndexType, Hash, ReverseIndexHashTableState<ColumnType, string_hash, has_base_index>>;
         using State = typename Base::State;
         using Base::Base;
         using Base::key;
@@ -72,20 +89,30 @@ namespace
         /// When we compare something inside column default keyEquals checks only that row numbers are equal.
         bool keyEquals(const StringRef & object, size_t hash_ [[maybe_unused]], const State & state) const
         {
+            auto index = key;
+            if constexpr (has_base_index)
+                index -= state.base_index;
+
             if constexpr (string_hash)
-                return hash_ == (*state.saved_hash_column)[key] && object == state.index_column->getDataAt(key);
+                return hash_ == (*state.saved_hash_column)[index] && object == state.index_column->getDataAt(index);
             else
-                return object == state.index_column->getDataAt(key);
+                return object == state.index_column->getDataAt(index);
         }
 
         size_t getHash(const Hash & hash) const
         {
+            auto index = key;
+
             /// Hack. HashTable is Hash itself.
             const auto & state = static_cast<const State &>(static_cast<const HashTable &>(hash));
+
+            if constexpr (has_base_index)
+                index -= state.base_index;
+
             if constexpr (string_hash)
-                return (*state.saved_hash_column)[key];
+                return (*state.saved_hash_column)[index];
             else
-                return hash(state, key);
+                return hash(state, index);
         }
     };
 
@@ -101,15 +128,16 @@ namespace
         State & getState() { return *this; }
     };
 
-    template <typename IndexType, typename ColumnType>
+    template <typename IndexType, typename ColumnType, bool has_base_index>
     class ReverseIndexStringHashTable : public HashTableWithPublicState<
             IndexType,
             ReverseIndexHashTableCell<
                     IndexType,
                     ReverseIndexStringHash,
-                    ReverseIndexStringHashTable<IndexType, ColumnType>,
+                    ReverseIndexStringHashTable<IndexType, ColumnType, has_base_index>,
                     ColumnType,
-                    true>,
+                    true,
+                    has_base_index>,
             ReverseIndexStringHash>
     {
         using Base = HashTableWithPublicState<
@@ -117,29 +145,32 @@ namespace
                 ReverseIndexHashTableCell<
                         IndexType,
                         ReverseIndexStringHash,
-                        ReverseIndexStringHashTable<IndexType, ColumnType>,
+                        ReverseIndexStringHashTable<IndexType, ColumnType, has_base_index>,
                         ColumnType,
-                        true>,
+                        true,
+                        has_base_index>,
                 ReverseIndexStringHash>;
     public:
         using Base::Base;
         friend class ReverseIndexHashTableCell<
                 IndexType,
                 ReverseIndexStringHash,
-                ReverseIndexStringHashTable<IndexType, ColumnType>,
+                ReverseIndexStringHashTable<IndexType, ColumnType, has_base_index>,
                 ColumnType,
-                true>;
+                true,
+                has_base_index>;
     };
 
-    template <typename IndexType, typename ColumnType>
+    template <typename IndexType, typename ColumnType, bool has_base_index>
     class ReverseIndexNumberHashTable : public HashTableWithPublicState<
             IndexType,
             ReverseIndexHashTableCell<
                     IndexType,
                     ReverseIndexNumberHash<typename ColumnType::value_type>,
-                    ReverseIndexNumberHashTable<IndexType, ColumnType>,
+                    ReverseIndexNumberHashTable<IndexType, ColumnType, has_base_index>,
                     ColumnType,
-                    false>,
+                    false,
+                    has_base_index>,
             ReverseIndexNumberHash<typename ColumnType::value_type>>
     {
         using Base = HashTableWithPublicState<
@@ -147,34 +178,36 @@ namespace
                 ReverseIndexHashTableCell<
                         IndexType,
                         ReverseIndexNumberHash<typename ColumnType::value_type>,
-                        ReverseIndexNumberHashTable<IndexType, ColumnType>,
+                        ReverseIndexNumberHashTable<IndexType, ColumnType, has_base_index>,
                         ColumnType,
-                        false>,
+                        false,
+                        has_base_index>,
                 ReverseIndexNumberHash<typename ColumnType::value_type>>;
     public:
         using Base::Base;
         friend class ReverseIndexHashTableCell<
                 IndexType,
                 ReverseIndexNumberHash<typename ColumnType::value_type>,
-                ReverseIndexNumberHashTable<IndexType, ColumnType>,
+                ReverseIndexNumberHashTable<IndexType, ColumnType, has_base_index>,
                 ColumnType,
-                false>;
+                false,
+                has_base_index>;
     };
 
 
-    template <typename IndexType, typename ColumnType, bool is_numeric_column>
+    template <typename IndexType, typename ColumnType, bool has_base_index, bool is_numeric_column>
     struct SelectReverseIndexHashTable;
 
-    template <typename IndexType, typename ColumnType>
-    struct SelectReverseIndexHashTable<IndexType, ColumnType, true>
+    template <typename IndexType, typename ColumnType, bool has_base_index>
+    struct SelectReverseIndexHashTable<IndexType, ColumnType, has_base_index, true>
     {
-        using Type = ReverseIndexNumberHashTable<IndexType, ColumnType>;
+        using Type = ReverseIndexNumberHashTable<IndexType, ColumnType, has_base_index>;
     };
 
-    template <typename IndexType, typename ColumnType>
-    struct SelectReverseIndexHashTable<IndexType, ColumnType, false>
+    template <typename IndexType, typename ColumnType, bool has_base_index>
+    struct SelectReverseIndexHashTable<IndexType, ColumnType, has_base_index, false>
     {
-        using Type = ReverseIndexStringHashTable<IndexType, ColumnType>;
+        using Type = ReverseIndexStringHashTable<IndexType, ColumnType, has_base_index>;
     };
 
 
@@ -188,13 +221,13 @@ namespace
     static_assert(!isNumericColumn(static_cast<ColumnString *>(nullptr)));
 
 
-    template <typename IndexType, typename ColumnType>
-    using ReverseIndexHashTable = typename SelectReverseIndexHashTable<IndexType, ColumnType,
+    template <typename IndexType, typename ColumnType, bool has_base_index>
+    using ReverseIndexHashTable = typename SelectReverseIndexHashTable<IndexType, ColumnType, has_base_index,
             isNumericColumn(static_cast<ColumnType *>(nullptr))>::Type;
 }
 
 
-template <typename IndexType, typename ColumnType>
+template <typename IndexType, typename ColumnType, bool has_base_index>
 class ReverseIndex
 {
 public:
@@ -220,7 +253,7 @@ private:
     UInt64 num_prefix_rows_to_skip; /// The number prefix tows in column which won't be sored at index.
     UInt64 base_index; /// This values will be added to row number which is inserted into index.
 
-    using IndexMapType = ReverseIndexHashTable<IndexType, ColumnType>;
+    using IndexMapType = ReverseIndexHashTable<IndexType, ColumnType, has_base_index>;
 
     /// Lazy initialized.
     std::unique_ptr<IndexMapType> index;
@@ -231,8 +264,8 @@ private:
 
 
 
-template <typename IndexType, typename ColumnType>
-void ReverseIndex<IndexType, ColumnType>:: setColumn(ColumnType * column_)
+template <typename IndexType, typename ColumnType, bool has_base_index>
+void ReverseIndex<IndexType, ColumnType, has_base_index>:: setColumn(ColumnType * column_)
 {
     if (column != column_)
         index = nullptr;
@@ -240,8 +273,8 @@ void ReverseIndex<IndexType, ColumnType>:: setColumn(ColumnType * column_)
     column = column_;
 }
 
-template <typename IndexType, typename ColumnType>
-size_t ReverseIndex<IndexType, ColumnType>::size() const
+template <typename IndexType, typename ColumnType, bool has_base_index>
+size_t ReverseIndex<IndexType, ColumnType, has_base_index>::size() const
 {
     if (!column)
         throw Exception("ReverseIndex has not size because index column wasn't set.", ErrorCodes::LOGICAL_ERROR);
@@ -249,8 +282,8 @@ size_t ReverseIndex<IndexType, ColumnType>::size() const
     return column->size();
 }
 
-template <typename IndexType, typename ColumnType>
-void ReverseIndex<IndexType, ColumnType>::buildIndex()
+template <typename IndexType, typename ColumnType, bool has_base_index>
+void ReverseIndex<IndexType, ColumnType, has_base_index>::buildIndex()
 {
     if (index)
         return;
@@ -289,8 +322,8 @@ void ReverseIndex<IndexType, ColumnType>::buildIndex()
     }
 }
 
-template <typename IndexType, typename ColumnType>
-UInt64 ReverseIndex<IndexType, ColumnType>::insert(UInt64 from_position)
+template <typename IndexType, typename ColumnType, bool has_base_index>
+UInt64 ReverseIndex<IndexType, ColumnType, has_base_index>::insert(UInt64 from_position)
 {
     if (!index)
         buildIndex();
@@ -314,8 +347,8 @@ UInt64 ReverseIndex<IndexType, ColumnType>::insert(UInt64 from_position)
     return *iterator;
 }
 
-template <typename IndexType, typename ColumnType>
-UInt64 ReverseIndex<IndexType, ColumnType>::insertFromLastRow()
+template <typename IndexType, typename ColumnType, bool has_base_index>
+UInt64 ReverseIndex<IndexType, ColumnType, has_base_index>::insertFromLastRow()
 {
     if (!column)
         throw Exception("ReverseIndex can't insert row from column because index column wasn't set.",
@@ -335,8 +368,8 @@ UInt64 ReverseIndex<IndexType, ColumnType>::insertFromLastRow()
     return inserted_pos;
 }
 
-template <typename IndexType, typename ColumnType>
-UInt64 ReverseIndex<IndexType, ColumnType>::getInsertionPoint(const StringRef & data)
+template <typename IndexType, typename ColumnType, bool has_base_index>
+UInt64 ReverseIndex<IndexType, ColumnType, has_base_index>::getInsertionPoint(const StringRef & data)
 {
     if (!index)
         buildIndex();
