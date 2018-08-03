@@ -68,7 +68,11 @@ namespace
         template <typename State, typename T>
         size_t operator()(const State & state, T key) const
         {
-            return Hash::operator()(state.index_column->getElement(key));
+            auto index = key;
+            if constexpr (state.with_base_index)
+                index -= state.base_index;
+
+            return Hash::operator()(state.index_column->getElement(index));
         }
     };
 
@@ -122,7 +126,7 @@ namespace
             if constexpr (string_hash)
                 return (*state.saved_hash_column)[index];
             else
-                return hash(state, index);
+                return hash(state, key);
         }
     };
 
