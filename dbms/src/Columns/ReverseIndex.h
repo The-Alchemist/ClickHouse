@@ -325,8 +325,8 @@ void ReverseIndex<IndexType, ColumnType>::buildIndex()
         if constexpr (use_saved_hash)
         {
             auto hash = StringRefHash()(column->getDataAt(row));
-            index->emplace(row + base_index, iterator, inserted, hash);
             saved_hash->getElement(row) = hash;
+            index->emplace(row + base_index, iterator, inserted, hash);
         }
         else
             index->emplace(row + base_index, iterator, inserted);
