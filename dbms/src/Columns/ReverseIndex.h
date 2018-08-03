@@ -227,7 +227,7 @@ namespace
 }
 
 
-template <typename IndexType, typename ColumnType, bool has_base_index>
+template <typename IndexType, typename ColumnType>
 class ReverseIndex
 {
 public:
@@ -253,7 +253,7 @@ private:
     UInt64 num_prefix_rows_to_skip; /// The number prefix tows in column which won't be sored at index.
     UInt64 base_index; /// This values will be added to row number which is inserted into index.
 
-    using IndexMapType = ReverseIndexHashTable<IndexType, ColumnType, has_base_index>;
+    using IndexMapType = ReverseIndexHashTable<IndexType, ColumnType, true>;
 
     /// Lazy initialized.
     std::unique_ptr<IndexMapType> index;
@@ -264,8 +264,8 @@ private:
 
 
 
-template <typename IndexType, typename ColumnType, bool has_base_index>
-void ReverseIndex<IndexType, ColumnType, has_base_index>:: setColumn(ColumnType * column_)
+template <typename IndexType, typename ColumnType>
+void ReverseIndex<IndexType, ColumnType>:: setColumn(ColumnType * column_)
 {
     if (column != column_)
         index = nullptr;
@@ -273,8 +273,8 @@ void ReverseIndex<IndexType, ColumnType, has_base_index>:: setColumn(ColumnType 
     column = column_;
 }
 
-template <typename IndexType, typename ColumnType, bool has_base_index>
-size_t ReverseIndex<IndexType, ColumnType, has_base_index>::size() const
+template <typename IndexType, typename ColumnType>
+size_t ReverseIndex<IndexType, ColumnType>::size() const
 {
     if (!column)
         throw Exception("ReverseIndex has not size because index column wasn't set.", ErrorCodes::LOGICAL_ERROR);
@@ -282,8 +282,8 @@ size_t ReverseIndex<IndexType, ColumnType, has_base_index>::size() const
     return column->size();
 }
 
-template <typename IndexType, typename ColumnType, bool has_base_index>
-void ReverseIndex<IndexType, ColumnType, has_base_index>::buildIndex()
+template <typename IndexType, typename ColumnType>
+void ReverseIndex<IndexType, ColumnType>::buildIndex()
 {
     if (index)
         return;
@@ -322,8 +322,8 @@ void ReverseIndex<IndexType, ColumnType, has_base_index>::buildIndex()
     }
 }
 
-template <typename IndexType, typename ColumnType, bool has_base_index>
-UInt64 ReverseIndex<IndexType, ColumnType, has_base_index>::insert(UInt64 from_position)
+template <typename IndexType, typename ColumnType>
+UInt64 ReverseIndex<IndexType, ColumnType>::insert(UInt64 from_position)
 {
     if (!index)
         buildIndex();
@@ -347,8 +347,8 @@ UInt64 ReverseIndex<IndexType, ColumnType, has_base_index>::insert(UInt64 from_p
     return *iterator;
 }
 
-template <typename IndexType, typename ColumnType, bool has_base_index>
-UInt64 ReverseIndex<IndexType, ColumnType, has_base_index>::insertFromLastRow()
+template <typename IndexType, typename ColumnType>
+UInt64 ReverseIndex<IndexType, ColumnType>::insertFromLastRow()
 {
     if (!column)
         throw Exception("ReverseIndex can't insert row from column because index column wasn't set.",
@@ -368,8 +368,8 @@ UInt64 ReverseIndex<IndexType, ColumnType, has_base_index>::insertFromLastRow()
     return inserted_pos;
 }
 
-template <typename IndexType, typename ColumnType, bool has_base_index>
-UInt64 ReverseIndex<IndexType, ColumnType, has_base_index>::getInsertionPoint(const StringRef & data)
+template <typename IndexType, typename ColumnType>
+UInt64 ReverseIndex<IndexType, ColumnType>::getInsertionPoint(const StringRef & data)
 {
     if (!index)
         buildIndex();
