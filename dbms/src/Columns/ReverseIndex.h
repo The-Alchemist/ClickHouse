@@ -275,6 +275,18 @@ private:
     ColumnUInt64::MutablePtr saved_hash;
 
     void buildIndex();
+
+    UInt64 getHash(const StringRef & ref) const
+    {
+        if constexpr (is_numeric_column)
+        {
+            using ValueType = typename ColumnType::value_type;
+            ValueType value = *reinterpret_cast<const ValueType *>(ref.data);
+            return DefaultHash<ValueType>()(value);
+        }
+        else
+            return StringRefHash()(ref);
+    }
 };
 
 
@@ -324,14 +336,12 @@ void ReverseIndex<IndexType, ColumnType>::buildIndex()
 
     for (auto row : ext::range(num_prefix_rows_to_skip, size))
     {
+        auto hash = getHash(column->getDataAt(row));
+
         if constexpr (use_saved_hash)
-        {
-            auto hash = StringRefHash()(column->getDataAt(row));
             saved_hash->getElement(row) = hash;
-            index->emplace(row + base_index, iterator, inserted, hash);
-        }
-        else
-            index->emplace(row + base_index, iterator, inserted);
+
+        index->emplace(row + base_index, iterator, inserted, hash);
 
         if (!inserted)
             throw Exception("Duplicating keys found in ReverseIndex.", ErrorCodes::LOGICAL_ERROR);
@@ -348,17 +358,17 @@ UInt64 ReverseIndex<IndexType, ColumnType>::insert(UInt64 from_position)
     IteratorType iterator;
     bool inserted;
 
+    auto hash = getHash(column->getDataAt(from_position));
+
     if constexpr (use_saved_hash)
     {
-        auto hash = StringRefHash()(column->getDataAt(from_position));
         auto & data = saved_hash->getData();
         if (data.size() <= from_position)
             data.resize(from_position + 1);
         data[from_position] = hash;
-        index->emplace(from_position + base_index, iterator, inserted, hash);
     }
-    else
-        index->emplace(from_position + base_index, iterator, inserted);
+
+    index->emplace(from_position + base_index, iterator, inserted, hash);
 
     return *iterator;
 }
@@ -393,18 +403,8 @@ UInt64 ReverseIndex<IndexType, ColumnType>::getInsertionPoint(const StringRef & 
     using IteratorType = typename IndexMapType::iterator;
     IteratorType iterator;
 
-    if constexpr (is_numeric_column)
-    {
-        using ValueType = typename ColumnType::value_type;
-        ValueType value = *reinterpret_cast<const ValueType *>(data.data);
-        auto hash = DefaultHash<ValueType>()(value);
-        iterator = index->find(data, hash);
-    }
-    else
-    {
-        auto hash = StringRefHash()(data);
-        iterator = index->find(data, hash);
-    }
+    auto hash = getHash(data);
+    iterator = index->find(data, hash);
 
     return iterator == index->end() ? size() + base_index : *iterator;
 }
