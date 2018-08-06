@@ -365,10 +365,15 @@ namespace
     template <typename T>
     IndexMapsWithAdditionalKeys mapIndexWithAdditionalKeys(PaddedPODArray<T> & index, size_t dict_size)
     {
+        PaddedPODArray<T> copy(index.cbegin(), index.cend());
+
         T max_less_dict_size = 0;
         T max_value = 0;
 
         auto size = index.size();
+        if (size == 0)
+            return {ColumnVector<T>::create(), ColumnVector<T>::create()};
+
         for (size_t i = 0; i < size; ++i)
         {
             auto val = index[i];
@@ -439,6 +444,15 @@ namespace
                 val = map[val];
             else
                 val = overflow_map[val - dict_size] + dictionary_map_size;
+        }
+
+        for (size_t i = 0; i < index.size(); ++i)
+        {
+            T expected = index[i] < dict_data.size() ? dict_data[index[i]]
+                                                     : add_keys_data[index[i] - dict_data.size()] + dict_size;
+            if (expected != copy[i])
+                throw Exception("Expected " + toString(expected) + ", but got " + toString(copy[i]), ErrorCodes::LOGICAL_ERROR);
+
         }
 
         return {std::move(dictionary_map), std::move(additional_keys_map)};
