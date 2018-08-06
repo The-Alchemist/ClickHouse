@@ -320,7 +320,7 @@ namespace
     };
 
     template <typename T>
-    IndexMapsWithAdditionalKeys mapIndexWithAdditionalKeys(PaddedPODArray<T> & index, size_t dict_size)
+    IndexMapsWithAdditionalKeys mapIndexWithAdditionalKeysRef(PaddedPODArray<T> & index, size_t dict_size)
     {
         PaddedPODArray<T> copy(index.cbegin(), index.cend());
 
@@ -357,6 +357,88 @@ namespace
             if (expected != copy[i])
                 throw Exception("Expected " + toString(expected) + ", but got " + toString(copy[i]), ErrorCodes::LOGICAL_ERROR);
 
+        }
+
+        return {std::move(dictionary_map), std::move(additional_keys_map)};
+    }
+
+    template <typename T>
+    IndexMapsWithAdditionalKeys mapIndexWithAdditionalKeys(PaddedPODArray<T> & index, size_t dict_size)
+    {
+        T max_less_dict_size = 0;
+        T max_value = 0;
+
+        auto size = index.size();
+        for (size_t i = 0; i < size; ++i)
+        {
+            auto val = index[i];
+            if (val < dict_size)
+                max_less_dict_size = std::max(max_less_dict_size, index[i]);
+
+            max_value = std::max(max_value, val);
+        }
+
+        auto map_size = UInt64(max_less_dict_size) + 1;
+        auto overflow_map_size = max_value >= dict_size ? (UInt64(max_value - dict_size) + 1) : 0;
+        PaddedPODArray<T> map(map_size, 0);
+        PaddedPODArray<T> overflow_map(overflow_map_size, 0);
+
+        T zero_pos_value = index[0];
+        T cur_pos = 0;
+        T cur_overflowed_pos = 0;
+
+        for (size_t i = 1; i < size; ++i)
+        {
+            T val = index[i];
+            if (val != zero_pos_value)
+            {
+                if (val < dict_size)
+                {
+                    if (map[val] == 0)
+                    {
+                        ++cur_pos;
+                        map[val] = cur_pos;
+                    }
+                }
+                else
+                {
+                    T shifted_val = val - dict_size;
+                    if (overflow_map[shifted_val] == 0)
+                    {
+                        ++cur_overflowed_pos;
+                        overflow_map[shifted_val] = cur_overflowed_pos;
+                    }
+                }
+            }
+        }
+
+        auto dictionary_map_size = UInt64(cur_pos) + 1;
+        auto additional_keys_map_size = UInt64(cur_overflowed_pos) + 1;
+        auto dictionary_map = ColumnVector<T>::create(dictionary_map_size);
+        auto additional_keys_map = ColumnVector<T>::create(additional_keys_map_size);
+        auto & dict_data = dictionary_map->getData();
+        auto & add_keys_data = additional_keys_map->getData();
+
+        for (size_t i = 0; i < map_size; ++i)
+            if (map[i])
+                dict_data[map[i]] = static_cast<T>(i);
+
+        for (size_t i = 0; i < overflow_map_size; ++i)
+            if (overflow_map[i])
+                add_keys_data[overflow_map[i]] = static_cast<T>(i);
+
+        if (zero_pos_value < dict_size)
+            dict_data[0] = zero_pos_value;
+        else
+            add_keys_data[0] = zero_pos_value - dict_size;
+
+        for (size_t i = 0; i < size; ++i)
+        {
+            T & val = index[i];
+            if (val < dict_size)
+                val = map[val];
+            else
+                val = overflow_map[val - dict_size] + dictionary_map_size;
         }
 
         return {std::move(dictionary_map), std::move(additional_keys_map)};
