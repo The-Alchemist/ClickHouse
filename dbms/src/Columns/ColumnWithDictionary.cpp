@@ -58,12 +58,13 @@ namespace
             max_val = std::max(max_val, index[i]);
 
         /// May happen when dictionary is shared.
-        if (max_val >size)
+        if (max_val > size)
             return mapUniqueIndexImplRef(index);
 
         auto map_size = UInt64(max_val) + 1;
         PaddedPODArray<T> map(map_size, 0);
         T zero_pos_value = index[0];
+        index[0] = 0;
         T cur_pos = 0;
         for (size_t i = 1; i < size; ++i)
         {
@@ -80,7 +81,7 @@ namespace
         auto res_col = ColumnVector<T>::create(UInt64(cur_pos) + 1);
         auto & data = res_col->getData();
         data[0] = zero_pos_value;
-        for (size_t i = 1; i < map_size; ++i)
+        for (size_t i = 0; i < map_size; ++i)
         {
             auto val = map[i];
             if (val)
