@@ -80,8 +80,11 @@ namespace
         auto & data = res_col->getData();
         data[0] = zero_pos_value;
         for (size_t i = 1; i < size; ++i)
-            if (map[i])
-                data[map[i]] = static_cast<T>(i);
+        {
+            auto val = index[i];
+            if (map[val])
+                data[map[val]] = static_cast<T>(val);
+        }
 
         return std::move(res_col);
     }
