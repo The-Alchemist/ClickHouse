@@ -61,7 +61,8 @@ namespace
         if (max_val >size)
             return mapUniqueIndexImplRef(index);
 
-        PaddedPODArray<T> map(UInt64(max_val) + 1, 0);
+        auto map_size = UInt64(max_val) + 1;
+        PaddedPODArray<T> map(map_size, 0);
         T zero_pos_value = index[0];
         T cur_pos = 0;
         for (size_t i = 1; i < size; ++i)
@@ -79,7 +80,7 @@ namespace
         auto res_col = ColumnVector<T>::create(UInt64(cur_pos) + 1);
         auto & data = res_col->getData();
         data[0] = zero_pos_value;
-        for (size_t i = 1; i < size; ++i)
+        for (size_t i = 1; i < map_size; ++i)
         {
             auto val = map[i];
             if (val)
