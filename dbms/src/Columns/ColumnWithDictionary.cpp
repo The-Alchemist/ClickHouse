@@ -81,9 +81,9 @@ namespace
         data[0] = zero_pos_value;
         for (size_t i = 1; i < size; ++i)
         {
-            auto val = index[i];
-            if (map[val])
-                data[map[val]] = static_cast<T>(val);
+            auto val = map[i];
+            if (val)
+                data[val] = static_cast<T>(i);
         }
 
         return std::move(res_col);
