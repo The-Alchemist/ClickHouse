@@ -256,6 +256,7 @@ public:
     UInt64 insert(UInt64 from_position);  /// Insert into index column[from_position];
     UInt64 insertFromLastRow();
     UInt64 getInsertionPoint(const StringRef & data);
+    UInt64 lastInsertionPoint() const { return size() + base_index; }
 
     ColumnType * getColumn() const { return column; }
     size_t size() const;

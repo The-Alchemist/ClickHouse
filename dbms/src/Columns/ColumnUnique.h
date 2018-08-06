@@ -238,7 +238,10 @@ size_t ColumnUnique<ColumnType>::uniqueInsertData(const char * pos, size_t lengt
     UInt64 insertion_point = index.getInsertionPoint(StringRef(pos, length));
 
     if (insertion_point == size)
+    {
+        column->insertData(pos, length);
         index.insertFromLastRow();
+    }
 
     return insertion_point;
 }
@@ -404,7 +407,7 @@ MutableColumnPtr ColumnUnique<ColumnType>::uniqueInsertRangeImpl(
             {
                 auto insertion_point = cur_index->getInsertionPoint(ref);
 
-                if (insertion_point == next_position)
+                if (insertion_point == cur_index->lastInsertionPoint())
                 {
                     if (secondary_index && cur_index != secondary_index && next_position >= max_dictionary_size)
                     {
