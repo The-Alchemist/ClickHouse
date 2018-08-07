@@ -425,8 +425,8 @@ namespace
             }
         }
 
-        auto dictionary_map_size = UInt64(cur_pos) + 1;
-        auto additional_keys_map_size = UInt64(cur_overflowed_pos) + 1;
+        auto dictionary_map_size = cur_pos;
+        auto additional_keys_map_size = cur_overflowed_pos;
         auto dictionary_map = ColumnVector<T>::create(dictionary_map_size);
         auto additional_keys_map = ColumnVector<T>::create(additional_keys_map_size);
         auto & dict_data = dictionary_map->getData();
