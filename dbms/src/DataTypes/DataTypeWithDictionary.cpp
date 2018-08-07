@@ -378,7 +378,7 @@ namespace
         {
             auto val = index[i];
             if (val < dict_size)
-                max_less_dict_size = std::max(max_less_dict_size, index[i]);
+                max_less_dict_size = std::max(max_less_dict_size, val);
 
             max_value = std::max(max_value, val);
         }
@@ -388,9 +388,10 @@ namespace
         PaddedPODArray<T> map(map_size, 0);
         PaddedPODArray<T> overflow_map(overflow_map_size, 0);
 
-        T zero_pos_value = index[0];
-        T cur_pos = 0;
-        T cur_overflowed_pos = 0;
+        T zero_pos_value;
+        T zero_pos_overflowed_value;
+        UInt64 cur_pos = 0;
+        UInt64 cur_overflowed_pos = 0;
 
         for (size_t i = 1; i < size; ++i)
         {
@@ -401,8 +402,10 @@ namespace
                 {
                     if (map[val] == 0)
                     {
-                        ++cur_pos;
+                        if (cur_pos == 0)
+                            zero_pos_value = val;
                         map[val] = cur_pos;
+                        ++cur_pos;
                     }
                 }
                 else
@@ -410,8 +413,10 @@ namespace
                     T shifted_val = val - dict_size;
                     if (overflow_map[shifted_val] == 0)
                     {
-                        ++cur_overflowed_pos;
+                        if (cur_overflowed_pos == 0)
+                            zero_pos_overflowed_value = shifted_val;
                         overflow_map[shifted_val] = cur_overflowed_pos;
+                        ++cur_overflowed_pos;
                     }
                 }
             }
@@ -432,10 +437,10 @@ namespace
             if (overflow_map[i])
                 add_keys_data[overflow_map[i]] = static_cast<T>(i);
 
-        if (zero_pos_value < dict_size)
+        if (cur_pos)
             dict_data[0] = zero_pos_value;
-        else
-            add_keys_data[0] = zero_pos_value - dict_size;
+        if (cur_overflowed_pos)
+            add_keys_data[0] = zero_pos_overflowed_value;
 
         for (size_t i = 0; i < size; ++i)
         {
