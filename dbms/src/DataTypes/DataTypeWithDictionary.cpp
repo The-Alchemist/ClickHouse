@@ -417,7 +417,7 @@ namespace
                     zero_pos_overflowed_value = shifted_val;
                     ++cur_overflowed_pos;
                 }
-                if (overflow_map[shifted_val] == 0 && shifted_val != zero_pos_overflowed_value)
+                else if (overflow_map[shifted_val] == 0 && shifted_val != zero_pos_overflowed_value)
                 {
                     overflow_map[shifted_val] = cur_overflowed_pos;
                     ++cur_overflowed_pos;
@@ -425,10 +425,8 @@ namespace
             }
         }
 
-        auto dictionary_map_size = cur_pos;
-        auto additional_keys_map_size = cur_overflowed_pos;
-        auto dictionary_map = ColumnVector<T>::create(dictionary_map_size);
-        auto additional_keys_map = ColumnVector<T>::create(additional_keys_map_size);
+        auto dictionary_map = ColumnVector<T>::create(cur_pos);
+        auto additional_keys_map = ColumnVector<T>::create(cur_overflowed_pos);
         auto & dict_data = dictionary_map->getData();
         auto & add_keys_data = additional_keys_map->getData();
 
@@ -451,7 +449,7 @@ namespace
             if (val < dict_size)
                 val = map[val];
             else
-                val = overflow_map[val - dict_size] + dictionary_map_size;
+                val = overflow_map[val - dict_size] + cur_pos;
         }
 
         for (size_t i = 0; i < index.size(); ++i)
