@@ -396,30 +396,28 @@ namespace
         for (size_t i = 1; i < size; ++i)
         {
             T val = index[i];
-            if (val != zero_pos_value)
+            if (val < dict_size)
             {
-                if (val < dict_size)
+                if (map[val] == 0 && (cur_pos == 0 || val != zero_pos_value))
                 {
-                    if (map[val] == 0)
-                    {
-                        if (cur_pos == 0)
-                            zero_pos_value = val;
-                        map[val] = cur_pos;
-                        ++cur_pos;
-                    }
-                }
-                else
-                {
-                    T shifted_val = val - dict_size;
-                    if (overflow_map[shifted_val] == 0)
-                    {
-                        if (cur_overflowed_pos == 0)
-                            zero_pos_overflowed_value = shifted_val;
-                        overflow_map[shifted_val] = cur_overflowed_pos;
-                        ++cur_overflowed_pos;
-                    }
+                    if (cur_pos == 0)
+                        zero_pos_value = val;
+                    map[val] = cur_pos;
+                    ++cur_pos;
                 }
             }
+            else
+            {
+                T shifted_val = val - dict_size;
+                if (overflow_map[shifted_val] == 0 && (cur_overflowed_pos == 0 || shifted_val != zero_pos_overflowed_value))
+                {
+                    if (cur_overflowed_pos == 0)
+                        zero_pos_overflowed_value = shifted_val;
+                    overflow_map[shifted_val] = cur_overflowed_pos;
+                    ++cur_overflowed_pos;
+                }
+            }
+
         }
 
         auto dictionary_map_size = UInt64(cur_pos) + 1;
