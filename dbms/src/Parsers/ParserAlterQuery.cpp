@@ -1,6 +1,7 @@
 #include <Parsers/ParserAlterQuery.h>
 #include <Parsers/CommonParsers.h>
 #include <Parsers/ExpressionElementParsers.h>
+#include <Parsers/ExpressionListParsers.h>
 #include <Parsers/ParserCreateQuery.h>
 #include <Parsers/ParserPartition.h>
 #include <Parsers/ASTIdentifier.h>
@@ -38,12 +39,15 @@ bool ParserAlterCommand::parseImpl(Pos & pos, ASTPtr & node, Expected & expected
     ParserKeyword s_name("NAME");
 
     ParserKeyword s_delete_where("DELETE WHERE");
+    ParserKeyword s_update("UPDATE");
+    ParserKeyword s_where("WHERE");
 
     ParserCompoundIdentifier parser_name;
     ParserStringLiteral parser_string_literal;
     ParserCompoundColumnDeclaration parser_col_decl;
     ParserPartition parser_partition;
     ParserExpression exp_elem;
+    ParserExpressionList exp_list(true, false);
 
     if (s_add_column.ignore(pos, expected))
     {
@@ -200,6 +204,19 @@ bool ParserAlterCommand::parseImpl(Pos & pos, ASTPtr & node, Expected & expected
 
         command->type = ASTAlterCommand::DELETE;
     }
+    else if (s_update.ignore(pos, expected))
+    {
+        if (!exp_list.parse(pos, command->update_assignments, expected)) /// TODO: more specific parser.
+            return false;
+
+        if (!s_where.ignore(pos, expected))
+            return false;
+
+        if (!exp_elem.parse(pos, command->predicate, expected))
+            return false;
+
+        command->type = ASTAlterCommand::UPDATE;
+    }
     else
         return false;
 
@@ -213,6 +230,8 @@ bool ParserAlterCommand::parseImpl(Pos & pos, ASTPtr & node, Expected & expected
         command->children.push_back(command->partition);
     if (command->predicate)
         command->children.push_back(command->predicate);
+    if (command->update_assignments)
+        command->children.push_back(command->update_assignments);
 
     return true;
 }

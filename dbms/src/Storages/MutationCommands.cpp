@@ -7,6 +7,8 @@
 #include <Parsers/ExpressionListParsers.h>
 #include <Parsers/ParserAlterQuery.h>
 #include <Parsers/parseQuery.h>
+#include <Parsers/ASTIdentifier.h>
+#include <Parsers/ASTFunction.h>
 #include <Common/typeid_cast.h>
 
 
@@ -16,6 +18,7 @@ namespace DB
 namespace ErrorCodes
 {
     extern const int UNKNOWN_MUTATION_COMMAND;
+    extern const int MULTIPLE_ASSIGNMENTS_TO_COLUMN;
 }
 
 std::optional<MutationCommand> MutationCommand::parse(ASTAlterCommand * command)
@@ -26,6 +29,30 @@ std::optional<MutationCommand> MutationCommand::parse(ASTAlterCommand * command)
         res.ast = command->ptr();
         res.type = DELETE;
         res.predicate = command->predicate;
+        return res;
+    }
+    else if (command->type == ASTAlterCommand::UPDATE)
+    {
+        MutationCommand res;
+        res.ast = command->ptr();
+        res.type = UPDATE;
+        res.predicate = command->predicate;
+        for (const ASTPtr & assignment : command->update_assignments->children)
+        {
+            const auto & assignment_func = typeid_cast<const ASTFunction &>(*assignment);
+            if (assignment_func.name != "equals")
+                throw Exception("Bad function name in assignment: `" + assignment_func.name + "'",
+                    ErrorCodes::LOGICAL_ERROR);
+            if (assignment_func.arguments->children.size() != 2)
+                throw Exception("Bad number of children in assignment AST: " + toString(assignment_func.arguments->children.size()),
+                    ErrorCodes::LOGICAL_ERROR);
+
+            const auto & column = typeid_cast<const ASTIdentifier &>(*assignment_func.arguments->children[0]);
+            auto insertion = res.column_to_update_expression.emplace(column.name, assignment_func.arguments->children[1]);
+            if (!insertion.second)
+                throw Exception("Multiple assignments in the single statement to column `" + column.name + "'",
+                    ErrorCodes::MULTIPLE_ASSIGNMENTS_TO_COLUMN);
+        }
         return res;
     }
     else
